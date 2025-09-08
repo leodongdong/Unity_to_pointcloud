@@ -1,0 +1,7 @@
+The txt. label and ply. point cloud from Unity need to be further transformed for training in OpenPCDet,
+
+First, point clouds from different cameras need to be merged into point cloud that can cover the whole hoisting process.
+
+Second, the merged point clouds need to be transformed into npy. format
+
+Third, raw labels from Unity need to be transformed for training in OpenPCDet
