@@ -1,0 +1,171 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using Unity.Collections;
+using Unity.Mathematics;
+using UnityEditor;
+using UnityEngine;
+using UnityEngine.Serialization;
+
+//[ExecuteInEditMode]
+public class CameraCloud : MonoBehaviour
+{
+    public Camera camera;
+    public Material matDepthBlit;
+    public ComputeShader cs_ComputeWorldPos;
+    public int cameraWidth = 1920;
+    public int cameraHeight = 1080;
+
+    // DebugPoints ==============================
+    public bool bDrawDebugPoints = false;
+    public Material debugMaterial;
+    public Mesh debugMesh;
+    
+    [Range(0.001f, 0.1f)]
+    public float debugPointScale = 0.002f;
+
+    private ComputeBuffer cb_Positions;
+    private float3[] arrPositions;
+    
+    public Texture2D depthMap;
+
+    [ContextMenu("CaptureCameraCloud")]
+    public void CaptureCameraCloud(string OutPutSceneName, DateTime dtNow, Transform cameraPosition = null, bool bRefreshAssets = false)
+    {
+        if (depthMap != null)
+        {
+            DestroyImmediate(depthMap);
+            depthMap = null;
+        }
+
+        //int width = camera.scaledPixelWidth;
+        //int height = camera.scaledPixelHeight;
+
+        depthMap = new Texture2D(cameraWidth, cameraHeight, TextureFormat.RGBAHalf, false);
+        depthMap.wrapMode = TextureWrapMode.Clamp;
+        depthMap.filterMode = FilterMode.Bilinear;
+        
+        RenderTexture rt = new RenderTexture(cameraWidth, cameraHeight, 0, RenderTextureFormat.ARGBHalf);
+        Graphics.Blit(depthMap, rt, matDepthBlit);
+        
+        var tmp = RenderTexture.active;
+        RenderTexture.active = rt;
+        
+        depthMap.ReadPixels(new Rect(0, 0, depthMap.width, depthMap.height), 0, 0);
+        depthMap.Apply();
+        
+        rt.Release();
+        
+        cb_Positions = new ComputeBuffer(depthMap.width * depthMap.height, 3 * sizeof(float), ComputeBufferType.Structured);
+        
+        //===============Compute
+        int kernel = cs_ComputeWorldPos.FindKernel( "CSMain" );
+        cs_ComputeWorldPos.SetTexture(kernel, "InputDepthMap", depthMap);
+        cs_ComputeWorldPos.SetBuffer(kernel, "Result", cb_Positions);
+        cs_ComputeWorldPos.SetFloat("texWidth", depthMap.width);
+        cs_ComputeWorldPos.SetFloat("texHeight", depthMap.height);
+        cs_ComputeWorldPos.SetMatrix("cameraToWorld", camera.cameraToWorldMatrix);
+        cs_ComputeWorldPos.SetMatrix("projection_Inv", GL.GetGPUProjectionMatrix(camera.projectionMatrix, false).inverse);
+        cs_ComputeWorldPos.Dispatch(kernel, depthMap.width / 8, depthMap.height / 8, 1);
+        
+#if UNITY_EDITOR
+        
+
+        // SaveToPLY===============
+        string strNow = dtNow.ToString("yyyy-MM-dd-HH-mm-ss-ffff");
+        string strNowDirPath = $"{Application.dataPath}/Output/{OutPutSceneName}/{strNow}";
+
+        if (!Directory.Exists(strNowDirPath))
+        {
+            Directory.CreateDirectory(strNowDirPath);
+        }
+        string plyPath;
+        if (cameraPosition == null)
+        {
+            plyPath = $"{strNowDirPath}/CameraCloud.ply";
+        }
+        else
+        {
+            plyPath = $"{strNowDirPath}/{cameraPosition.name}.ply";
+        }
+        
+        float3[] positions_All = new float3[cb_Positions.count];
+        cb_Positions.GetData(positions_All);
+        float3[] positions = positions_All.Where(_ => _.y > -9999).ToArray();
+        Color[] colors = new Color[positions.Length];
+        for (int i = 0; i < colors.Length; i++)
+        {
+            colors[i] = Color.white;
+        }
+        PLYWriter.WriteToFile(plyPath, positions, colors);
+
+        string recordTargetPath;
+        if (cameraPosition == null)
+        {
+            recordTargetPath = $"{strNowDirPath}/TargetInfo.txt";
+        }
+        else
+        {
+            recordTargetPath = $"{strNowDirPath}/{cameraPosition.name}-TargetInfo.txt";
+            
+        }
+        
+        var recordTarget = FindObjectOfType<RecordTarget>();
+        if (recordTarget != null)
+        {
+            recordTarget.WriteToFile(recordTargetPath);
+        }
+
+        if (bRefreshAssets)
+        {
+            AssetDatabase.Refresh();
+        }
+        
+        
+        // Save DepthMap =================
+        // string filePath = $"{strNowDirPath}/{cameraPosition.name}-depthMap.png";
+        // byte[] bytes = depthMap.EncodeToPNG();
+        // System.IO.File.WriteAllBytes(filePath, bytes);
+        // AssetDatabase.Refresh();
+        //
+        // TextureImporter importer = AssetImporter.GetAtPath($"Assets/Output/{OutPutSceneName}/{strNow}/{cameraPosition.name}-depthMap.png") as TextureImporter;
+        // importer.filterMode = FilterMode.Bilinear;
+        // importer.mipmapEnabled = false;
+        // importer.wrapMode = TextureWrapMode.Clamp;
+        //
+        // importer.npotScale = TextureImporterNPOTScale.None;
+        // var setting = importer.GetDefaultPlatformTextureSettings();
+        // setting.format = TextureImporterFormat.RGBAHalf;
+        // importer.SetPlatformTextureSettings(setting);
+        //
+        // importer.SaveAndReimport();
+#endif
+
+        RenderTexture.active = tmp;
+    }
+
+    private void Update()
+    {
+        if (!bDrawDebugPoints)
+            return;
+        
+        if (depthMap == null || debugMesh == null || debugMaterial == null || cb_Positions == null)
+        {
+            return;
+        }
+        
+        debugMaterial.SetBuffer("buffer_Positions", cb_Positions);
+        debugMaterial.SetTexture("_PositionMap", depthMap);
+        debugMaterial.SetInt("_MapWidth", depthMap.width);
+        debugMaterial.SetFloat("_DebugPointScale", debugPointScale);
+        Graphics.DrawMeshInstancedProcedural(debugMesh, 0, debugMaterial, new Bounds(Vector3.zero, Vector3.one * 10000), cb_Positions.count);
+    }
+
+    private void OnDisable()
+    {
+        cb_Positions?.Release();
+        cb_Positions = null;
+    }
+}
