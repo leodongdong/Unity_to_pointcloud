@@ -1,0 +1,51 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class TotalCapture : MonoBehaviour
+{
+    public string OutPutSceneName = "Scene1";
+    public CameraCloud cameraCloud;
+    public float captureInterval = 1.0f;
+    public List<Transform> allCameraPosition = new List<Transform>();
+
+    private float fTimer = 0;
+
+    private void Awake()
+    {
+        
+    }
+
+    void Start()
+    {
+        
+    }
+    
+    private void Update()
+    {
+        fTimer -= Time.deltaTime;
+        if (fTimer <= 0)
+        {
+            fTimer = captureInterval;
+            StartCoroutine(DoCaptureAllCamera());
+        }
+    }
+
+    IEnumerator DoCaptureAllCamera()
+    {
+        yield return new WaitForEndOfFrame();
+        DateTime dtNow = DateTime.Now;
+        foreach (var trans in allCameraPosition)
+        {
+            cameraCloud.transform.parent = trans;
+            cameraCloud.transform.localPosition = Vector3.zero;
+            cameraCloud.transform.localRotation = Quaternion.identity;
+            cameraCloud.transform.localScale = Vector3.one;
+            
+            cameraCloud.camera.Render();
+            
+            cameraCloud.CaptureCameraCloud(OutPutSceneName, dtNow, trans);
+        }
+    }
+}
