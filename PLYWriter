@@ -1,0 +1,61 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+using System.IO;
+using Unity.Collections;
+using Unity.Mathematics;
+
+//...
+
+public class PLYWriter
+{
+    public static void WriteToFile(string filePath, float3[] positions, Color[] colors)
+    {
+        int vertexCount = positions.Length;
+        using (StreamWriter writer = new StreamWriter(filePath))
+        {
+            WritePLYHeader(writer, vertexCount);
+            writer.Close();
+        }
+        using (FileStream fileStream = new FileStream(filePath, FileMode.Append))
+        {
+            using (BinaryWriter binaryWriter = new BinaryWriter(fileStream))
+            {
+                for (int i = 0; i < vertexCount; i++)
+                {
+                    float3 position = positions[i];
+                    Color color = colors[i];
+                    // 写入位置信息（x, y, z）
+                    byte[] xBytes = BitConverter.GetBytes(position.x);
+                    byte[] yBytes = BitConverter.GetBytes(position.z);
+                    byte[] zBytes = BitConverter.GetBytes(position.y);
+                    binaryWriter.Write(xBytes);
+                    binaryWriter.Write(yBytes);
+                    binaryWriter.Write(zBytes);
+                    // 写入颜色信息（r, g, b）
+                    binaryWriter.Write(Convert.ToByte(color.r * 255));
+                    binaryWriter.Write(Convert.ToByte(color.g * 255));
+                    binaryWriter.Write(Convert.ToByte(color.b * 255));
+                }
+            }
+        }
+    }
+    
+    static void WritePLYHeader(StreamWriter writer, int vertexCount)
+    {
+        writer.WriteLine("ply");
+        writer.WriteLine("format binary_little_endian 1.0");
+        writer.WriteLine("element vertex " + vertexCount);
+        writer.WriteLine("property float x");
+        writer.WriteLine("property float y");
+        writer.WriteLine("property float z");
+        writer.WriteLine("property uchar red");
+        writer.WriteLine("property uchar green");
+        writer.WriteLine("property uchar blue");
+        //writer.WriteLine("element face 1");
+        //writer.WriteLine("property list uchar int vertex_indices");
+        writer.WriteLine("end_header");
+    }
+}
