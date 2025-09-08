@@ -1,0 +1,8 @@
+Put all four Script files into the Assets/Scripts
+
+CameraCloud) essentially captures a depth view from a Unity camera, converts every pixel into a 3D point in world space, and then either saves that point cloud as a .ply file or draws it directly in the scene for debugging.
+PLYWriter) is a utility for saving a point cloud (positions + colors) to a PLY file in binary little-endian format. PLY (“Polygon File Format”) is a common standard for storing 3D point/mesh data that many tools (MeshLab, CloudCompare) can open.
+RecordTarget) aims to record the location of MiC module as ({Position.x} {Position.z} {Position.y} {Scale.x} {Scale.y} {Scale.z} {Heading}")
+TotalCapture） is a manager that repeatedly moves a CameraCloud rig through a list of predefined transforms and triggers point-cloud capture at a fixed interval. It automates multi-view scanning instead of you manually clicking “Capture” every time.
+                                                                                                                                                                                                               
+                                                                                                                                                                                                              
