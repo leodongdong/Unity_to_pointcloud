@@ -1,0 +1,26 @@
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using UnityEngine;
+
+public class RecordTarget : MonoBehaviour
+{
+    public Vector3 Position => transform.position;
+    
+    public float Heading => 180.0f - transform.eulerAngles.y;
+    
+    public Vector3 Scale => transform.lossyScale;
+    
+    public void WriteToFile(string filePath)
+    {
+        using (StreamWriter writer = new StreamWriter(filePath))
+        {
+            WriteTarget(writer);
+            writer.Close();
+        }
+    }
+    void WriteTarget(StreamWriter writer)
+    {
+        writer.Write($"{Position.x} {Position.z} {Position.y} {Scale.x} {Scale.y} {Scale.z} {Heading}");
+    }
+}
