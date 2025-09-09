@@ -12,7 +12,7 @@
        
    
 
-- 3. Prerequisites  
+- 2. Prerequisites  
    - 2.1 Unity environment  
        - Unity editor version 2022.3.55f1  
    - 2.2 For training in OpenPCDet  
