@@ -7,6 +7,7 @@ The code repository is script code and examples of Unity-based point cloud gener
 1.2 Related paper
 
 1.3 Related video
+    Our accompanying videos are now available on YouTube (click below images to open) 
     [![Watch on YouTube](Asset/Pic1.png)](https://www.youtube.com/watch?v=1OXGiIyo9AE)
 
 2. Prerequisites
